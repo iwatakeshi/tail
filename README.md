@@ -1,8 +1,8 @@
-# rtail
+# tail
 
 A cross-platform `tail` clone written in Rust.
 
-`rtail` is a command-line utility that outputs the last N lines (default 10) or bytes from standard input or one or more files. It supports all standard GNU `tail` features including follow mode for monitoring file growth, multiple file support with headers, and offset-from-start syntax.
+`tail` is a command-line utility that outputs the last N lines (default 10) or bytes from standard input or one or more files. It supports all standard GNU `tail` features including follow mode for monitoring file growth, multiple file support with headers, and offset-from-start syntax.
 
 ## Features
 
