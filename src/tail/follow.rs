@@ -125,7 +125,10 @@ impl FollowState {
             return Ok(false);
         }
 
-        let file = self.file.as_mut().unwrap();
+        let file = match self.file.as_mut() {
+            Some(f) => f,
+            None => return Ok(false),
+        };
         let metadata = file.metadata()?;
         let current_size = metadata.len();
 

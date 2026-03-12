@@ -58,7 +58,10 @@ pub fn tail_lines_seekable(mut file: File, num_lines: usize, delimiter: u8) -> i
 
         // Process lines from the end of the chunk
         loop {
-            let line = chunk_lines.pop().unwrap().to_vec();
+            let Some(line_bytes) = chunk_lines.pop() else {
+                break;
+            };
+            let line = line_bytes.to_vec();
             if chunk_lines.is_empty() {
                 // This partial line becomes leftover for the next chunk
                 leftover = line;
