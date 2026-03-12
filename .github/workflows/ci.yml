@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Check formatting
+        run: cargo fmt -- --check
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release
+      - name: Run unit tests
+        run: cargo test
+      - name: Test basic line output (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          BINARY=./target/release/rtail
+
+          # Test last 1 line
+          output=$($BINARY -n 1 test/testfile.txt)
+          expected="pocket, he strode away with as rapid a motion as the wind and the rain"
+          if [ "$output" != "$expected" ]; then
+            echo "FAIL: -n 1 testfile.txt"
+            echo "Got: '$output'"
+            echo "Expected: '$expected'"
+            exit 1
+          fi
+
+          # Test last 2 lines
+          output=$($BINARY -n 2 test/testfile.txt)
+          expected="thing proffered _might_ do as well; and thrusting it into his ample
+          pocket, he strode away with as rapid a motion as the wind and the rain"
+          # Normalize whitespace for comparison
+          output_normalized=$(echo "$output" | tr -s ' ')
+
+          # Test last 1 byte
+          output=$($BINARY -c 1 test/testfile.txt)
+          if [ "$output" != "n" ]; then
+            echo "FAIL: -c 1 testfile.txt"
+            exit 1
+          fi
+
+          # Test 5 bytes
+          output=$($BINARY -c 5 test/testfile.txt)
+          if [ "$output" != " rain" ]; then
+            echo "FAIL: -c 5 testfile.txt"
+            exit 1
+          fi
+
+          # Test stdin
+          output=$(echo -e "a\nb\nc" | $BINARY -n 1)
+          if [ "$output" != "c" ]; then
+            echo "FAIL: stdin -n 1"
+            exit 1
+          fi
+
+          echo "All Unix integration tests passed!"
+
+      - name: Test basic line output (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $binary = ".\target\release\rtail.exe"
+
+          # Test last 1 line
+          $output = & $binary -n 1 test/testfile.txt
+          $expected = "pocket, he strode away with as rapid a motion as the wind and the rain"
+          if ($output -ne $expected) {
+            Write-Error "FAIL: -n 1 testfile.txt"
+            Write-Error "Got: '$output'"
+            Write-Error "Expected: '$expected'"
+            exit 1
+          }
+
+          # Test last 1 byte
+          $output = & $binary -c 1 test/testfile.txt
+          if ($output -ne "n") {
+            Write-Error "FAIL: -c 1 testfile.txt"
+            exit 1
+          }
+
+          Write-Host "All Windows integration tests passed!"
+
+  build-release:
+    name: Build Release (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    needs: [lint, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtail-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/rtail
+            target/${{ matrix.target }}/release/rtail.exe
