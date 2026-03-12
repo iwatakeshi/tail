@@ -43,7 +43,7 @@ jobs:
       - name: Test basic line output (Unix)
         if: runner.os != 'Windows'
         run: |
-          BINARY=./target/release/rtail
+          BINARY=./target/release/tail
 
           # Test last 1 line
           output=$($BINARY -n 1 test/testfile.txt)
@@ -89,7 +89,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $binary = ".\target\release\rtail.exe"
+          $binary = ".\target\release\tail.exe"
 
           # Test last 1 line
           $output = & $binary -n 1 test/testfile.txt
@@ -134,7 +134,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rtail-${{ matrix.target }}
+          name: tail-${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/rtail
-            target/${{ matrix.target }}/release/rtail.exe
+            target/${{ matrix.target }}/release/tail
+            target/${{ matrix.target }}/release/tail.exe
