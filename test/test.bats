@@ -12,6 +12,10 @@ setup() {
     PATH="$DIR/../src:$PATH"
 }
 
+# =====================
+# Line-based tests
+# =====================
+
 @test "Test with one line output, no trailing newline" {
     run /usr/bin/rtail -n 1 /code/test/testfile.txt
     assert_output "pocket, he strode away with as rapid a motion as the wind and the rain"
@@ -48,8 +52,8 @@ pocket, he strode away with as rapid a motion as the wind and the rain"
 pocket, he strode away with as rapid a motion as the wind and the rain"
 }
 
-@test "Test when c is greater than number of chars in file" {
-    run /usr/bin/rtail -c 9999 /code/test/testfile.txt
+@test "Test when n is greater than number of lines in file" {
+    run /usr/bin/rtail -n 9999 /code/test/testfile.txt
     assert_output "It was a dark and stormy night; the rain fell in torrents, except at
 occasional intervals, when it was checked by a violent gust of wind which
 swept up the streets (for it is in London that our scene lies), rattling
@@ -71,8 +75,12 @@ thing proffered _might_ do as well; and thrusting it into his ample
 pocket, he strode away with as rapid a motion as the wind and the rain"
 }
 
-@test "Test when n is greater than number of lines in file" {
-    run /usr/bin/rtail -n 9999 /code/test/testfile.txt
+# =====================
+# Byte-based tests
+# =====================
+
+@test "Test when c is greater than number of chars in file" {
+    run /usr/bin/rtail -c 9999 /code/test/testfile.txt
     assert_output "It was a dark and stormy night; the rain fell in torrents, except at
 occasional intervals, when it was checked by a violent gust of wind which
 swept up the streets (for it is in London that our scene lies), rattling
@@ -112,4 +120,87 @@ pocket, he strode away with as rapid a motion as the wind and the rain"
 @test "Test three char output, trailing newline (md5)" {
     run sh -c '/usr/bin/rtail -c 3 /code/test/testfile_newline.txt | md5sum | cut -d" " -f1'
     assert_output "ba8d2b9408ed255ee92a112fe7ba59be"
+}
+
+# =====================
+# Lines from start (+N) tests
+# =====================
+
+@test "Test lines from start +1 outputs entire file" {
+    run sh -c 'printf "line1\nline2\nline3\n" | /usr/bin/rtail -n +1'
+    assert_output "line1
+line2
+line3"
+}
+
+@test "Test lines from start +2 skips first line" {
+    run sh -c 'printf "line1\nline2\nline3\n" | /usr/bin/rtail -n +2'
+    assert_output "line2
+line3"
+}
+
+# =====================
+# Bytes from start (+N) tests
+# =====================
+
+@test "Test bytes from start +1 outputs entire content" {
+    run sh -c 'printf "Hello" | /usr/bin/rtail -c +1'
+    assert_output "Hello"
+}
+
+@test "Test bytes from start +4 skips first 3 bytes" {
+    run sh -c 'printf "Hello" | /usr/bin/rtail -c +4'
+    assert_output "lo"
+}
+
+# =====================
+# Multiple files tests
+# =====================
+
+@test "Test multiple files show headers" {
+    run /usr/bin/rtail -n 1 /code/test/testfile.txt /code/test/testfile_newline.txt
+    assert_line --index 0 "==> /code/test/testfile.txt <=="
+    assert_line --index 1 "pocket, he strode away with as rapid a motion as the wind and the rain"
+    assert_line --index 3 "==> /code/test/testfile_newline.txt <=="
+    assert_line --index 4 "pocket, he strode away with as rapid a motion as the wind and the rain"
+}
+
+@test "Test quiet suppresses headers with multiple files" {
+    run /usr/bin/rtail -q -n 1 /code/test/testfile.txt /code/test/testfile_newline.txt
+    refute_output --partial "==>"
+}
+
+@test "Test verbose shows header with single file" {
+    run /usr/bin/rtail -v -n 1 /code/test/testfile.txt
+    assert_line --index 0 "==> /code/test/testfile.txt <=="
+    assert_line --index 1 "pocket, he strode away with as rapid a motion as the wind and the rain"
+}
+
+# =====================
+# Edge cases
+# =====================
+
+@test "Test with empty file" {
+    run sh -c 'printf "" | /usr/bin/rtail -n 1'
+    assert_output ""
+}
+
+@test "Test -c 0 outputs nothing" {
+    run /usr/bin/rtail -c 0 /code/test/testfile.txt
+    assert_output ""
+}
+
+@test "Test -n 0 outputs nothing" {
+    run /usr/bin/rtail -n 0 /code/test/testfile.txt
+    assert_output ""
+}
+
+@test "Test nonexistent file gives error" {
+    run /usr/bin/rtail /nonexistent/file
+    assert_failure
+}
+
+@test "Test number suffix K" {
+    run sh -c 'dd if=/dev/zero bs=1024 count=2 2>/dev/null | /usr/bin/rtail -c 1K | wc -c'
+    assert_output "1024"
 }
