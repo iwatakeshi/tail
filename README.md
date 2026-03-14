@@ -112,6 +112,10 @@ cargo clippy
 cargo fmt
 ```
 
+## See Also
+
+- [iwatakeshi/head](https://github.com/iwatakeshi/head) — a cross-platform `head` clone written in Rust, the companion to this project.
+
 ## License
 
 Apache License 2.0
