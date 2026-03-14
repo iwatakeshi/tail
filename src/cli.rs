@@ -156,6 +156,52 @@ fn parse_number(s: &str) -> Result<(usize, bool), String> {
         .map(|v| (v, from_start))
 }
 
+/// Pre-process raw arguments to handle the legacy `-NUM` shorthand (e.g. `tail -30`),
+/// translating it into `-n NUM` before clap sees the argument list.
+///
+/// Any argument of the form `-<digits>` where all characters after the dash are ASCII
+/// digits is rewritten as two arguments: `-n` and `<digits>`. Everything after a bare
+/// `--` separator is passed through unchanged.
+fn preprocess_args<I, T>(args: I) -> Vec<std::ffi::OsString>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString>,
+{
+    let mut result: Vec<std::ffi::OsString> = Vec::new();
+    let mut iter = args.into_iter();
+
+    // First argument is the program name — pass through as-is.
+    if let Some(prog) = iter.next() {
+        result.push(prog.into());
+    }
+
+    let mut end_of_options = false;
+    for arg in iter {
+        let os_arg: std::ffi::OsString = arg.into();
+        if end_of_options {
+            result.push(os_arg);
+            continue;
+        }
+        if os_arg == "--" {
+            end_of_options = true;
+            result.push(os_arg);
+            continue;
+        }
+        // Detect `-NUM` (e.g. `-30`) and expand to `-n` + `30`.
+        if let Some(s) = os_arg.to_str() {
+            if let Some(num_str) = s.strip_prefix('-') {
+                if !num_str.is_empty() && num_str.bytes().all(|b| b.is_ascii_digit()) {
+                    result.push(std::ffi::OsString::from("-n"));
+                    result.push(std::ffi::OsString::from(num_str));
+                    continue;
+                }
+            }
+        }
+        result.push(os_arg);
+    }
+    result
+}
+
 /// Parse command-line arguments into a validated `TailConfig`.
 pub fn parse_args() -> Result<TailConfig, String> {
     parse_args_from(std::env::args_os())
@@ -165,9 +211,10 @@ pub fn parse_args() -> Result<TailConfig, String> {
 pub fn parse_args_from<I, T>(args: I) -> Result<TailConfig, String>
 where
     I: IntoIterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone,
+    T: Into<std::ffi::OsString>,
 {
-    let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
+    let preprocessed = preprocess_args(args);
+    let args = Args::try_parse_from(preprocessed).map_err(|e| e.to_string())?;
 
     // Validate: -c and -n are mutually exclusive
     if args.lines.is_some() && args.bytes.is_some() {
@@ -314,6 +361,32 @@ mod tests {
     fn test_lines_and_bytes_conflict() {
         let result = parse(&["-n", "5", "-c", "10"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_legacy_num_shorthand() {
+        let config = parse(&["-30"]).unwrap();
+        assert_eq!(config.count_mode, CountMode::Lines(30));
+    }
+
+    #[test]
+    fn test_legacy_num_shorthand_single_digit() {
+        let config = parse(&["-5"]).unwrap();
+        assert_eq!(config.count_mode, CountMode::Lines(5));
+    }
+
+    #[test]
+    fn test_legacy_num_shorthand_with_file() {
+        let config = parse(&["-20", "somefile.txt"]).unwrap();
+        assert_eq!(config.count_mode, CountMode::Lines(20));
+        assert_eq!(config.files, vec!["somefile.txt"]);
+    }
+
+    #[test]
+    fn test_legacy_num_does_not_affect_named_flags() {
+        // -f should not be rewritten — it is not all digits
+        let config = parse(&["-f"]).unwrap();
+        assert_eq!(config.follow, Some(FollowMode::Descriptor));
     }
 
     #[test]
