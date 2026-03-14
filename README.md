@@ -22,41 +22,41 @@ A cross-platform `tail` clone written in Rust.
 
 ```bash
 # Display last 10 lines of a file (default)
-rtail /etc/passwd
+tail /etc/passwd
 
 # Display last 20 lines from stdin
-cat /path/to/file | rtail -n 20
+cat /path/to/file | tail -n 20
 
 # Display last 5 lines of a file
-rtail -n 5 /etc/passwd
+tail -n 5 /etc/passwd
 
 # Display last 100 bytes
-rtail -c 100 myfile.txt
+tail -c 100 myfile.txt
 
 # Display starting from line 5 (skip first 4 lines)
-rtail -n +5 myfile.txt
+tail -n +5 myfile.txt
 
 # Display starting from byte 100
-rtail -c +100 myfile.txt
+tail -c +100 myfile.txt
 
 # Follow a file for new data (like log monitoring)
-rtail -f /var/log/syslog
+tail -f /var/log/syslog
 
 # Follow with log rotation support
-rtail -F /var/log/syslog
+tail -F /var/log/syslog
 
 # Multiple files with headers
-rtail -n 5 file1.txt file2.txt file3.txt
+tail -n 5 file1.txt file2.txt file3.txt
 
 # Use size suffixes
-rtail -c 2K myfile.txt    # Last 2 KiB (2048 bytes)
-rtail -c 1M myfile.txt    # Last 1 MiB (1048576 bytes)
+tail -c 2K myfile.txt    # Last 2 KiB (2048 bytes)
+tail -c 1M myfile.txt    # Last 1 MiB (1048576 bytes)
 
 # Suppress headers with multiple files
-rtail -q -n 5 file1.txt file2.txt
+tail -q -n 5 file1.txt file2.txt
 
 # Use NUL-terminated lines
-rtail -z -n 5 myfile.txt
+tail -z -n 5 myfile.txt
 ```
 
 ## Full Usage
@@ -67,7 +67,7 @@ With more than one FILE, precede each with a header giving the file name.
 
 With no FILE, or when FILE is -, read standard input.
 
-Usage: rtail [OPTIONS] [FILE]...
+Usage: tail [OPTIONS] [FILE]...
 
 Arguments:
   [FILE]...  Files to read from (optional, reads stdin if omitted or -)
@@ -111,6 +111,10 @@ cargo clippy
 # Format code
 cargo fmt
 ```
+
+## See Also
+
+- [iwatakeshi/head](https://github.com/iwatakeshi/head) — a cross-platform `head` clone written in Rust, the companion to this project.
 
 ## License
 
